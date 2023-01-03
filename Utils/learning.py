@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 from sklearn.model_selection import GridSearchCV
+import mlflow
 
 def plot_confusion_matrix(y_true, y_pred, classes, title=None, cmap=plt.cm.Blues):
     # Compute confusion matrix
@@ -74,11 +75,14 @@ def supervised_learning(df, model, algorithm, drop_columns: list = None, target_
     return test_label, predicted_labels, model
 
 def semi_supervised_learning(df, model, algorithm, threshold=0.8, iterations=40, drop_columns: list = None, target_column: str = None):
+    mlflow.autolog()
     df = df.copy()
     print("Training "+ algorithm +" Model")
     labels = df[target_column]
 
-    df.drop(drop_columns, axis=1, inplace=True)
+
+    if drop_columns != None:
+        df.drop(drop_columns, axis=1, inplace=True)
 
     train_data, test_data, train_label, test_label = train_test_split(df, labels, test_size=0.25, random_state=42)
 
@@ -109,11 +113,17 @@ def semi_supervised_learning(df, model, algorithm, threshold=0.8, iterations=40,
     while not all_labeled and (current_iteration < iterations):
         # print("Before train data length : ", len(train_data))
         # print("Before test data length : ", len(test_data))
-        current_iteration += 1
-        model.fit(train_data, train_label)
 
+        current_iteration += 1
+
+        with mlflow.start_run(nested=True) as run:
+            model.fit(train_data, train_label)
+            mlflow.set_tag("mlflow.runName", f"Semi Supervised Learning #{current_iteration}")
+        
         probabilities = model.predict_proba(test_data)
         pseudo_labels = model.predict(test_data)
+
+        autolog_run = mlflow.last_active_run()
 
         indices = np.argwhere(probabilities > threshold)
 
@@ -131,6 +141,8 @@ def semi_supervised_learning(df, model, algorithm, threshold=0.8, iterations=40,
             print("Exiting loop")
             all_labeled = True
         pbar.update(1)
+        
+
     pbar.close()
     predicted_labels = model.predict(test_data_copy)
 
@@ -149,6 +161,6 @@ def semi_supervised_learning(df, model, algorithm, threshold=0.8, iterations=40,
     results['reviewContent'] = test_review_content
     results[target_column] = test_label_copy
     results['predicted'] = predicted_labels
-
+    
     return model, results, feature
                           

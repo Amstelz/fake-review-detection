@@ -44,18 +44,24 @@ def computeIDF(uniqueWords:set, df:pd.DataFrame, text_column:str = 'Text'):
         for word in uniqueWords:
             if word in word_list:
                 idfDict[word] += 1
-                
+
+    drop = []           
     for word, val in idfDict.items():
         if val == 0:
-            print(idfDict.pop(word))
+            drop.append(word)
         else:
             idfDict[word] = math.log(len(df) / float(val))
+    
+    for i in drop: 
+        idfDict.pop(i)
+
     return idfDict
 
 def computeTFIDF(tfBagOfWords, idfs):
     tfidf = {}
     for word, val in tfBagOfWords.items():
-        tfidf[word] = val * idfs[word]
+        if word in idfs.keys():
+            tfidf[word] = val * idfs[word]
     return tfidf
 
 def print_summary_tf_idf(key:str, tfA:dict, tfB:dict, idfs:dict):

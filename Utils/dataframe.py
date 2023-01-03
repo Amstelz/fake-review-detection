@@ -17,7 +17,7 @@ def load_data():
     
     # Create Review DataFrame
     cursor.execute(
-        "SELECT reviewID, reviewerID, restaurantID, date, rating, usefulCount as reviewUsefulCount, reviewContent, flagged FROM review")
+        "SELECT reviewID, reviewerID, restaurantID, date, rating, usefulCount as reviewUsefulCount, reviewContent, flagged FROM review where flagged in ('Y','N')")
     review_df = pd.DataFrame(cursor.fetchall(), columns=[column[0] for column in cursor.description])
 
     # Create Reviewer DataFrame
