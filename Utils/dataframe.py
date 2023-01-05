@@ -110,7 +110,7 @@ def onehot(df, col, col_name, type):
     df.drop(col, axis=1, inplace=True)
     return df
 
-def under_sampling(df:pd.DataFrame, target:str, big_sample:any,  small_sample:any):
+def under_sampling(df:pd.DataFrame, target:str, big_sample:any,  small_sample:any) -> pd.DataFrame:
     print("Under-Sampling Data")
 
     sample_size = len(df[(df[target] == big_sample)])
@@ -121,10 +121,12 @@ def under_sampling(df:pd.DataFrame, target:str, big_sample:any,  small_sample:an
     small_sample_us_df = small_sample_df.sample(sample_size)
     under_sampled_df = pd.concat([small_sample_us_df, big_sample_df], axis=0)
 
+    under_sampled_df.reset_index(drop=True, inplace=True)
+
     print("Under-Sampling Complete")
     return under_sampled_df
 
-def over_sampling(df:pd.DataFrame, target:str, big_sample:any,  small_sample:any):
+def over_sampling(df:pd.DataFrame, target:str, big_sample:any,  small_sample:any) -> pd.DataFrame:
     print("Over-Sampling Data")
 
     sample_size = len(df[(df[target] == small_sample)])
@@ -134,6 +136,8 @@ def over_sampling(df:pd.DataFrame, target:str, big_sample:any,  small_sample:any
 
     big_sample_os_df = big_sample_df.sample(sample_size, replace=True)
     over_sampled_df = pd.concat([small_sample_df, big_sample_os_df], axis=0)
+
+    over_sampled_df.reset_index(drop=True, inplace=True)
 
     print("Over-Sampling Complete")
     return over_sampled_df

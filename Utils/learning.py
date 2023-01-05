@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestClassifier
 import mlflow
+import os
 
 def plot_confusion_matrix(y_true, y_pred, classes, title=None, cmap=plt.cm.Blues):
     # Compute confusion matrix
@@ -41,10 +43,10 @@ def plot_confusion_matrix(y_true, y_pred, classes, title=None, cmap=plt.cm.Blues
 
 def supervised_learning(df, model, algorithm, drop_columns: list = None, target_column: str = None):
     df = df.copy()
-    print("Training "+algorithm+" Model")
+    print("Training " + algorithm + " Model")
     labels = df[target_column]
 
-    df.drop(drop_columns, axis=1, inplace=True)
+    df.drop(target_column, axis=1, inplace=True)
 
     train_data, test_data, train_label, test_label = train_test_split(df, labels, test_size=0.25, random_state=42)
 
@@ -74,15 +76,17 @@ def supervised_learning(df, model, algorithm, drop_columns: list = None, target_
 
     return test_label, predicted_labels, model
 
-def semi_supervised_learning(df, model, algorithm, threshold=0.8, iterations=40, drop_columns: list = None, target_column: str = None):
-    mlflow.autolog()
+def semi_supervised_learning(df, experiment_name, model, algorithm, df_type, threshold=0.8, iterations=40, target_column: str = None, log: bool = False):
+
+    if log:
+        mlflow.autolog()
+
     df = df.copy()
-    print("Training "+ algorithm +" Model")
+    print("Training " + algorithm + " Model")
     labels = df[target_column]
 
 
-    if drop_columns != None:
-        df.drop(drop_columns, axis=1, inplace=True)
+    df.drop(target_column, axis=1, inplace=True)
 
     train_data, test_data, train_label, test_label = train_test_split(df, labels, test_size=0.25, random_state=42)
 
@@ -106,6 +110,7 @@ def semi_supervised_learning(df, model, algorithm, threshold=0.8, iterations=40,
     # grid_clf_acc = GridSearchCV(estimator=model, param_grid=param_grid, cv=5)
     #
     # grid_clf_acc.fit(train_data, train_label)
+
     feature = list(train_data.columns)
     
     pbar = tqdm(total=iterations)
@@ -116,14 +121,20 @@ def semi_supervised_learning(df, model, algorithm, threshold=0.8, iterations=40,
 
         current_iteration += 1
 
-        with mlflow.start_run(nested=True) as run:
-            model.fit(train_data, train_label)
-            mlflow.set_tag("mlflow.runName", f"Semi Supervised Learning #{current_iteration}")
-        
-        probabilities = model.predict_proba(test_data)
-        pseudo_labels = model.predict(test_data)
+        if log:
+            with mlflow.start_run(nested=True) as run:
+                model.fit(train_data, train_label)
+                mlflow.set_tag('mlflow.runName', f'{algorithm} Semi Supervised Learning on {df_type} #{current_iteration}')
+                mlflow.set_tag('feature', feature)
+                mlflow.set_tag('target', target_column)
+            
+            probabilities = model.predict_proba(test_data)
+            pseudo_labels = model.predict(test_data)
 
-        autolog_run = mlflow.last_active_run()
+        else: 
+            model.fit(train_data, train_label)
+            probabilities = model.predict_proba(test_data)
+            pseudo_labels = model.predict(test_data)
 
         indices = np.argwhere(probabilities > threshold)
 
@@ -135,10 +146,10 @@ def semi_supervised_learning(df, model, algorithm, threshold=0.8, iterations=40,
         test_label.drop(test_label.index[indices[:, 0]], inplace=True)
         # print("After train data length : ", len(train_data))
         # print("After test data length : ", len(test_data))
-        print("--" * 20)
+        print('--' * 20)
 
         if len(test_data) == 0:
-            print("Exiting loop")
+            print('Exiting loop')
             all_labeled = True
         pbar.update(1)
         
@@ -150,17 +161,24 @@ def semi_supervised_learning(df, model, algorithm, threshold=0.8, iterations=40,
     print(algorithm + ' Model Results')
     print('--' * 20)
     print('Accuracy Score : ' + str(accuracy_score(test_label_copy, predicted_labels)))
-    print('Precision Score : ' + str(precision_score(test_label_copy, predicted_labels, pos_label="Y")))
-    print('Recall Score : ' + str(recall_score(test_label_copy, predicted_labels, pos_label="Y")))
-    print('F1 Score : ' + str(f1_score(test_label_copy, predicted_labels, pos_label="Y")))
+    print('Precision Score : ' + str(precision_score(test_label_copy, predicted_labels, pos_label='Y')))
+    print('Recall Score : ' + str(recall_score(test_label_copy, predicted_labels, pos_label='Y')))
+    print('F1 Score : ' + str(f1_score(test_label_copy, predicted_labels, pos_label='Y')))
     print('Confusion Matrix : \n' + str(confusion_matrix(test_label_copy, predicted_labels)))
-    plot_confusion_matrix(test_label_copy, predicted_labels, classes=['N', 'Y'],
-                          title=algorithm + ' Confusion Matrix').show()
+    pyplot = plot_confusion_matrix(test_label_copy, predicted_labels, classes=['N', 'Y'],
+                          title=algorithm + ' Confusion Matrix')
+
+    os.makedirs(f'../Evals/{experiment_name}', exist_ok=True)
+    pyplot.savefig(f'../Evals/{experiment_name}/{algorithm}_{df_type}_confusion_matrix.png', bbox_inches='tight', facecolor='w', transparent=False)
+    pyplot.show()
 
     results = test_data_copy.copy()
     results['reviewContent'] = test_review_content
     results[target_column] = test_label_copy
     results['predicted'] = predicted_labels
-    
-    return model, results, feature
+
+    os.makedirs(f'../Data/results/{experiment_name}', exist_ok=True)
+    results.to_csv(f'../Data/results/{experiment_name}/{algorithm}_{df_type}_results.csv', index=False)
+
+    return model
                           
