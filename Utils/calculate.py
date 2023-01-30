@@ -37,10 +37,12 @@ def computeTF(wordDict, bagOfWords):
         tfDict[word] = count / float(bagOfWordsCount)
     return tfDict
 
-def computeIDF(uniqueWords:set, df:pd.DataFrame, text_column:str = 'Text'):
+def computeIDF(uniqueWords:set, df:pd.DataFrame, text_column:str = 'Text', ngram:int = 1):
     idfDict = dict.fromkeys(uniqueWords, 0)
     for document in df[text_column]:
         word_list = re.findall(r'\b[A-Za-z][a-z]{2,9}\b',  document)
+        if ngram > 1:
+            word_list = [' '.join(word_list[i:i+ngram]) for i in range(len(word_list) - ngram + 1)]
         for word in uniqueWords:
             if word in word_list:
                 idfDict[word] += 1
