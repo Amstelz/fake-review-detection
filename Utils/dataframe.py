@@ -110,37 +110,41 @@ def onehot(df, col, col_name, type):
     df.drop(col, axis=1, inplace=True)
     return df
 
-def under_sampling(df:pd.DataFrame, target:str, big_sample:any,  small_sample:any) -> pd.DataFrame:
+def under_sampling(df:pd.DataFrame, target:str) -> pd.DataFrame:
     print("Under-Sampling Data")
 
-    sample_size = len(df[(df[target] == big_sample)])
+    small_sample_name = df[target].value_counts().index[1]
+    sample_size = len(df.loc[df[target] == small_sample_name])   
+    us_df = df.loc[df[target] == small_sample_name]
 
-    small_sample_df = df[df[target] == small_sample]
-    big_sample_df = df[df[target] == big_sample]
+    unique_target = df[target].unique()
+    for i in unique_target:
+        if i != small_sample_name:
+            sampling = df.loc[df[target] == i].sample(sample_size, replace=True)
+            us_df = pd.concat([us_df, sampling], axis=0)
 
-    small_sample_us_df = small_sample_df.sample(sample_size)
-    under_sampled_df = pd.concat([small_sample_us_df, big_sample_df], axis=0)
-
-    under_sampled_df.reset_index(drop=True, inplace=True)
+    us_df.reset_index(drop=True, inplace=True)
 
     print("Under-Sampling Complete")
-    return under_sampled_df
+    return us_df
 
-def over_sampling(df:pd.DataFrame, target:str, big_sample:any,  small_sample:any) -> pd.DataFrame:
+def over_sampling(df:pd.DataFrame, target:str) -> pd.DataFrame:
     print("Over-Sampling Data")
 
-    sample_size = len(df[(df[target] == small_sample)])
+    big_sample_name = df[target].value_counts().index[0]
+    sample_size = len(df.loc[df[target] == big_sample_name])   
+    os_df = df.loc[df[target] == big_sample_name]
 
-    small_sample_df = df[df[target] == small_sample]
-    big_sample_df = df[df[target] == big_sample]
+    unique_target = df[target].unique()
+    for i in unique_target:
+        if i != big_sample_name:
+            sampling = df.loc[df[target] == i].sample(sample_size, replace=True)
+            os_df = pd.concat([os_df, sampling], axis=0)
 
-    big_sample_os_df = big_sample_df.sample(sample_size, replace=True)
-    over_sampled_df = pd.concat([small_sample_df, big_sample_os_df], axis=0)
-
-    over_sampled_df.reset_index(drop=True, inplace=True)
+    os_df.reset_index(drop=True, inplace=True)
 
     print("Over-Sampling Complete")
-    return over_sampled_df
+    return os_df
 
 def feature_engineering_thai(df):
     mnr_df1 = df[['reviewerID', 'date']].copy()
